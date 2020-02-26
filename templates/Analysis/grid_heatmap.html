@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+{% load static %}
+<html>
+<head>
+    <title>同步分析</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="{% static "css/leaflet.css" %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/index.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap-theme.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/metisMenu.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/mm-vertical.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/button.css' %}">
+    <style type="text/css">
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        html,
+        body,
+        #map {
+            height: 100%;
+            z-index: 1;
+        }
+
+        .leaflet-control {
+            top: 77px;
+        }
+
+        .leaflet-control-zoom {
+            left: 0px;
+        }
+
+        .content, .content1 {
+            background-color: #333333;
+            position: fixed;
+            z-index: 100;
+            border-radius: 10px;
+            padding: 10px;
+            top: 80px;
+        }
+
+        .content {
+            left: 20px;
+        }
+
+        .content1 {
+            width: 400px;
+            right: 20px;
+        }
+
+        .none {
+            display: none;
+        }
+
+        .show {
+            display: block;
+        }
+    </style>
+    <script type="text/javascript" src="{% static 'js/jquery.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/bootstrap.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/metisMenu.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/leaflet.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/leaflet.curve.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/leaflet.ChineseTmsProviders.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/d3.js' %}"></script>
+    <script src="http://colorbrewer2.org/export/colorbrewer.js"></script>
+    <script src="https://code.highcharts.com.cn/highcharts/highcharts.js"></script>
+    <script src="https://code.highcharts.com.cn/highcharts/highcharts-more.js"></script>
+    <script src="https://img.hcharts.cn/highcharts-plugins/highcharts-zh_CN.js"></script>
+    <script src="https://code.highcharts.com.cn/highcharts/themes/dark-unica.js"></script>
+</head>
+
+<body>
+<header>
+    <ul class="nav nav-tabs">
+        <li role="presentation"><a href="/">Home</a></li>
+        <li role="presentation"><a href="/chart">图表分析</a></li>
+        <li role="presentation"><a href="/map">地图分析</a></li>
+        <li role="presentation" class="active"><a href="/analysis">同步分析</a></li>
+        <li role="presentation"><a href="/analysis/trajectory_lenses">轨迹透镜</a></li>
+    </ul>
+</header>
+<content>
+
+    <div class="content none" id="main">
+        <div id="title" style="height: 10px">
+            <div id="ten"></div>
+            <div class="img" title="close" style="float: right;width: 20px;height: 20px">
+                <img class="img" id="img"
+                     src="http://localhost:8000/static/css/images/关闭.png"
+                     width="20px"
+                     height="20px">
+            </div>
+        </div>
+        <div id="container" style="min-width: 400px; max-width: 400px; height: 400px; "></div>
+        <div class="buttons" align="center" id="buttons">
+            <a class="time button button-rounded button-tiny"><span>时间</span></a>
+            <a class="km button button-rounded button-tiny"><span>路程</span></a>
+            <a class="rose button button-rounded button-tiny"><span>玫瑰图</span></a>
+        </div>
+    </div>
+{#    <div class="content1 none" id="main1">#}
+{#        <div id="title1" style="height: 10px">#}
+{#            <div id="ten1"></div>#}
+{#            <div class="img1" title="close" style="float: right;width: 20px;height: 20px">#}
+{#                <img class="img1"#}
+{#                     src="http://localhost:8000/static/css/images/关闭.png"#}
+{#                     width="20px"#}
+{#                     height="20px">#}
+{#            </div>#}
+{#        </div>#}
+{#        #}
+{#    </div>#}
+    <div id="map"></div>
+</content>
+</body>
+<script type="text/javascript">
+    let max_value = 80;
+    let color_range = colorbrewer.YlOrRd[6];
+    let color_scale = d3.scaleQuantile().domain([0, max_value]).range(color_range);
+    let normalm = L.tileLayer.chinaProvider('GaoDe.Normal.Map', {
+        maxZoom: 18,
+        minZoom: 5
+    });
+    let imgm = L.tileLayer.chinaProvider('GaoDe.Satellite.Map', {
+        maxZoom: 18,
+        minZoom: 5
+    });
+    let imga = L.tileLayer.chinaProvider('GaoDe.Satellite.Annotion', {
+        maxZoom: 18,
+        minZoom: 5
+    });
+
+    let normal = L.layerGroup([normalm]),
+        image = L.layerGroup([imgm, imga]);
+
+    let baseLayers = {
+        "地图": normal,
+        "影像": image,
+    };
+
+    let map = L.map("map", {
+        center: [30.258134, 120.19382669582967],
+        zoom: 13,
+        layers: [normal],
+        zoomControl: true
+    });
+
+    let time_list = [];
+    let dis_list = [];
+    let rose_list = [];
+    L.control.layers(baseLayers, null).addTo(map);
+
+
+    $.ajax({
+        type: "GET",
+        url: "http://localhost:8000/static/data/point_data/grid_data.json",
+        dataType: "json",
+        success: function (data) {
+            let gridData = data['data'];
+            draw_rect(gridData);
+        }
+    });
+
+
+    function draw_rect(grid_data) {
+        for (let i = 0; i < grid_data.length; i++) {
+            L.polygon([
+                    [grid_data[i].lat, grid_data[i].lng],
+                    [grid_data[i].lat + 0.0009, grid_data[i].lng],
+                    [grid_data[i].lat + 0.0009, grid_data[i].lng + 0.0009],
+                    [grid_data[i].lat, grid_data[i].lng + 0.0009],
+                ], {
+                    color: color_scale(grid_data[i].count),
+                    fillColor: color_scale(grid_data[i].count),
+                    fillOpacity: 0.8,
+                    opacity: 0.8,
+                    className: "rect_" + i,
+                    clickable: true,
+                }
+            ).on("click", get_info)
+                .addTo(map);
+        }
+    }
+
+
+    function draw_circle(path_data, radius) {
+        for (let i = 0; i < path_data.length; i++) {
+            let lat1 = path_data[i]["coordinates"][0][1];
+            let lng1 = path_data[i]["coordinates"][0][0];
+            let lat2 = path_data[i]["coordinates"][1][1];
+            let lng2 = path_data[i]["coordinates"][1][0];
+            let lat3 = 0;
+            let lng3 = 0;
+            lat3 = 1.00002 * (lat2 + lat1) / 2;
+            lng3 = 1.00002 * (lng2 + lng1) / 2;
+            L.circle([lat1, lng1], radius, {
+                color: "#00FF99",
+                className: "once",
+                clickable: true,
+            }).addTo(map);
+            L.circle([lat2, lng2], radius, {
+                color: "#FF3333",
+                className: "once",
+                clickable: true,
+            }).addTo(map);
+            L.curve(['M', [lat1, lng1],
+                    'Q', [lat3, lng3], [lat2, lng2]],
+                {
+                    color: '#00CCFF',
+                    opacity: 0.8,
+                    weight: 1,
+                    clickable: false,
+                    className: "once"
+                }).addTo(map);
+        }
+    }
+
+
+    function get_info() {
+        let id = Number(this.options.className.split("rect_")[1]);
+        $.ajax({
+            type: "POST",
+            url: "http://localhost:8000/analysis/get_info",
+            dataType: "json",
+            data: {
+                "id": id
+            },
+            success: function (data) {
+                let path_data = data['data'];
+                time_list = data['time_list'];
+                dis_list = data['dis_list'];
+                rose_list = data['rose_list'];
+                $("path").remove(".once");
+                draw_circle(path_data, 10);
+                showleida();
+                $(".time").click();
+                console.log(time_list, rose_list)
+            }
+        });
+
+    }
+
+    function showleida() {
+        $(".content").removeClass('none');
+        $(".content").addClass('show');
+        $(".content").css('left', "20px");
+        $(".content").css('top', "80px");
+{#        $(".content1").removeClass('none');#}
+{#        $(".content1").addClass('show');#}
+{#        $(".content1").css('right', "20px");#}
+{#        $(".content1").css('top', "80px");#}
+    }
+
+    let bool = false;
+    let offsetX = 0;
+    let offsetY = 0;
+    let bool1 = false;
+    let offsetX1 = 0;
+    let offsetY1 = 0;
+    $("#main").mousedown(function () {
+        if (event.toElement.id === "img" || event.toElement.id === "")
+            return;
+        bool = true;
+        offsetX = event.offsetX;
+        offsetY = event.offsetY;
+        $("#ten").css('cursor', 'move');
+    })
+        .mouseup(function () {
+            bool = false;
+        });
+    $(document).mousemove(function (e) {
+        if (!bool)
+            return;
+        let x = event.clientX - offsetX;
+        let y = event.clientY - offsetY;
+        $("#main").css("left", x);
+        $("#main").css("top", y);
+    });
+
+    $(".img").click(function () {
+        $("#main").removeClass("show");
+        $("#main").addClass("none");
+    });
+
+{#    $("#main1").mousedown(function () {#}
+{#        bool1 = true;#}
+{#        offsetX1 = event.offsetX;#}
+{#        offsetY1 = event.offsetY;#}
+{#        $("#ten1").css('cursor', 'move');#}
+{#    })#}
+{#        .mouseup(function () {#}
+{#            bool1 = false;#}
+{#        });#}
+{#    $(document).mousemove(function (e) {#}
+{#        if (!bool1)#}
+{#            return;#}
+{#        let x = event.clientX - offsetX;#}
+{#        let y = event.clientY - offsetY;#}
+{#        $("#main1").css("left", x);#}
+{#        $("#main1").css("top", y);#}
+{#    });#}
+{##}
+{#    $(".img1").click(function () {#}
+{#        $("#main1").removeClass("show");#}
+{#        $("#main1").addClass("none");#}
+{#    });#}
+
+    $(".time").click(function () {
+        Highcharts.setOptions({
+            colors: ["#e9a3c9", "#a1d76a", "#cbd5e8", "#f4cae4", "#e6f5c9"]
+        });
+        let chart = Highcharts.chart('container', {
+            chart: {
+                polar: true
+            },
+            title: {
+                text: '区域单车出发时间分析'
+            },
+            pane: {
+                startAngle: 0,
+                endAngle: 360
+            },
+            credits: {
+                enabled: false
+            },
+            xAxis: {
+                tickInterval: 2,
+                min: 0,
+                max: 24,
+                labels: {
+                    formatter: function () {
+                        return this.value + '时';
+                    }
+                }
+            },
+            yAxis: {
+                min: 0
+            },
+            plotOptions: {
+                series: {
+                    pointStart: 0,
+                    pointInterval: 2
+                },
+                column: {
+                    pointPadding: 0,
+                    groupPadding: 0
+                }
+            },
+            series: [{
+                type: 'line',
+                name: '单车数量',
+                data: time_list,
+            }, {
+                type: 'area',
+                name: '数量',
+                data: time_list
+            }]
+        });
+    });
+
+    $(".km").click(function () {
+        let chart = Highcharts.chart('container', {
+            chart: {
+                polar: true
+            },
+            title: {
+                text: '区域单车骑行距离分析'
+            },
+            pane: {
+                startAngle: 0,
+                endAngle: 360
+            },
+            credits: {
+                enabled: false
+            },
+            xAxis: {
+                tickInterval: 0.5,
+                min: 0,
+                max: 5,
+                labels: {
+                    formatter: function () {
+                        return this.value + 'km';
+                    }
+                }
+            },
+            yAxis: {
+                min: 0
+            },
+            plotOptions: {
+                series: {
+                    pointStart: 0,
+                    pointInterval: 0.5
+                },
+                column: {
+                    pointPadding: 0,
+                    groupPadding: 0
+                }
+            },
+            series: [{
+                type: 'line',
+                name: '单车数量',
+                data: dis_list
+            }, {
+                type: 'area',
+                name: '数量',
+                data: dis_list
+            }]
+        });
+    });
+
+    $(".rose").click(function () {
+        $('#container').highcharts({
+            chart: {polar: true, type: 'column'},
+            title: {text: '区域单车骑行终点玫瑰图'},
+            legend: {enabled: false},
+            xAxis: {
+                tickmarkPlacement: 'on',
+                categories: ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+            },
+            yAxis: {
+                title: {
+                    text: '距离 (数量/百分比)'
+                },
+                min: 0,
+                labels: {
+                    formatter: function () {
+                        return this.value + '辆';
+                    }
+                }
+            },
+            tooltip: {
+                formatter: function () {
+                    a = this.y / this.point.stackTotal * 100;
+                    return '<b>' + this.x + '</b><br/>' +
+                        this.series.name + ': <b>' + this.y + '</b>辆 (' + a.toFixed(2) + "%)";
+                }
+            },
+            plotOptions: {
+                series: {
+                    groupPadding: 0, pointPlacement: 'on', stacking: 'normal'
+                }
+            },
+            series: [
+                {
+                    name: '4.5km+',
+                    data: rose_list[5]
+                },
+                {
+                    name: '3.5-4.5km',
+                    data: rose_list[4]
+                },
+                {
+                    name: '2.5-3.5km',
+                    data: rose_list[3]
+                },
+                {
+                    name: '1.5-2.5km',
+                    data: rose_list[2]
+                },
+                {
+                    name: '0.5-1.5km',
+                    data: rose_list[1]
+                },
+                {
+                    name: '0-0.5km',
+                    data: rose_list[0]
+                }
+            ]
+        });
+    })
+</script>
+</html>

@@ -1,0 +1,43 @@
+header {
+    position: absolute;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    padding-left: 50px;
+    font-size: 18px;
+    z-index: 100;
+    width: 100%;
+    background-color: #434b55 !important;
+    top: 0;
+}
+
+.bg {
+    background-color: #434b55 !important;
+}
+
+.active {
+    background-color: #434b55 !important;
+}
+
+.nav-tabs > li.active > a,
+.nav-tabs > li.active > a:hover,
+.nav-tabs > li.active > a:focus {
+    color: #fff !important;
+    cursor: default;
+    background-color: #434b55 !important;
+    border: 1px solid #ddd;
+    border-bottom-color: transparent;
+}
+
+.nav-tabs {
+    border-bottom-color: #434B82 !important;
+}
+
+.left {
+    position: fixed;
+    left: 0;
+    top: 77px;
+    width: 200px;
+    font-size: 10px;
+    z-index: 100;
+}
+

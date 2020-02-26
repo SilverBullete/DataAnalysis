@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>图表分析</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/index.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap-theme.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/metisMenu.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/mm-vertical.css' %}">
+    <script type="text/javascript" src="{% static 'js/jquery.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/bootstrap.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/d3.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/metisMenu.js' %}"></script>
+    <script src="http://code.highcharts.com/highcharts.js"></script>
+</head>
+<body class="bg">
+<header>
+    <ul class="nav nav-tabs">
+        <li role="presentation"><a href="/">Home</a></li>
+        <li role="presentation" class="active"><a href="/chart">图表分析</a></li>
+        <li role="presentation"><a href="/map">地图分析</a></li>
+        <li role="presentation"><a href="/analysis">同步分析</a></li>
+        <li role="presentation"><a href="/analysis/trajectory_lenses">轨迹透镜</a></li>
+    </ul>
+</header>
+<content>
+    <div class="left">
+        <nav class="sidebar-nav">
+            <ul class="metismenu" id="menu1">
+                <li>
+                    <a href="/chart/bubble">气泡图</a>
+                </li>
+                <li class="mm-active">
+                    <a href="/chart/line">折线图</a>
+                </li>
+                <li>
+                    <a href="/chart/column">柱状图</a>
+                </li>
+                <li>
+                    <a href="/chart/chord">和弦图</a>
+                </li>
+                <li>
+                    <a class="has-arrow" href="#">
+                        <span class="fa fa-fw fa-github fa-lg"></span>
+                        旭日图
+                    </a>
+                    <ul>
+                        <li>
+                            <a href="/chart/sun/start_sun">
+                                <span class="fa fa-fw fa-code-fork"></span>起点旭日图
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/chart/sun/end_sun">
+                                <span class="fa fa-fw fa-star"></span>终点旭日图
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    <div class="content">
+        <div id="container" style="width: 550px; height: 400px; margin-left: 230px;margin-top: 77px"></div>
+    </div>
+</content>
+<script>
+    $('#menu1').metisMenu();
+    $.ajax({
+        type: "GET",
+        url: "http://localhost:8000/static/data/chart_data/time_list.json",
+        dataType: "json",
+        success: function (data) {
+            data = data['data'];
+            var chart = Highcharts.chart('container', {
+	title: {
+		text: ''
+	},
+	yAxis: {
+		title: {
+			text: '单车数量(万)'
+		}
+	},
+	xAxis:{
+   		title:{
+       		text:'时间段'
+   		},
+   		categories: ['24:00-2:00', '2:00-4:00', '4:00-6:00', '6:00-8:00', '8:00-10:00', '10:00-12:00', '12:00-14:00',
+         '14:00-16:00', '16:00-18:00', '18:00-20:00', '20:00-22:00', '22:00-24:00']
+
+	},
+	credits: {
+		enabled: false
+	},
+	series: [{
+		name: '单车数量',
+		data: data
+	}],
+	responsive: {
+		rules: [{
+			condition: {
+				maxWidth: 500
+			},
+			chartOptions: {
+				legend: {
+					layout: 'horizontal',
+					align: 'center',
+					verticalAlign: 'bottom'
+				}
+			}
+		}]
+	}
+});
+        }
+    })
+
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+asgiref==3.2.3
+certifi==2019.11.28
+chardet==3.0.4
+Django==3.0
+django-npm==1.0.0
+django-redis==4.10.0
+idna==2.8
+PyMySQL==0.9.3
+pytz==2019.3
+redis==3.3.11
+requests==2.22.0
+sqlparse==0.3.0
+urllib3==1.25.7

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+{% load static %}
+<html>
+<head>
+    <title>轨迹透镜</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="{% static "css/leaflet.css" %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/index.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap-theme.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/metisMenu.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/mm-vertical.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/button.css' %}">
+    <style type="text/css">
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        html,
+        body,
+        #map {
+            height: 100%;
+            z-index: 1;
+        }
+
+        .leaflet-control {
+            top: 77px;
+        }
+
+        .leaflet-control-zoom {
+            top: 180px;
+        }
+
+        .content, .content1 {
+            background-color: #333333;
+            position: fixed;
+            z-index: 100;
+            border-radius: 10px;
+            padding: 10px;
+            top: 80px;
+        }
+
+        .content {
+            left: 20px;
+        }
+
+        .content1 {
+            width: 400px;
+            right: 20px;
+        }
+
+        .none {
+            display: none;
+        }
+
+        .show {
+            display: block;
+        }
+    </style>
+    <script type="text/javascript" src="{% static 'js/jquery.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/bootstrap.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/metisMenu.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/leaflet.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/leaflet.curve.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/leaflet.ChineseTmsProviders.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/d3.js' %}"></script>
+    <script src="http://colorbrewer2.org/export/colorbrewer.js"></script>
+    <script src="https://code.highcharts.com.cn/highcharts/highcharts.js"></script>
+    <script src="https://code.highcharts.com.cn/highcharts/highcharts-more.js"></script>
+    <script src="https://img.hcharts.cn/highcharts-plugins/highcharts-zh_CN.js"></script>
+    <script src="https://code.highcharts.com.cn/highcharts/themes/dark-unica.js"></script>
+</head>
+
+<body>
+<header>
+    <ul class="nav nav-tabs">
+        <li role="presentation"><a href="/">Home</a></li>
+        <li role="presentation"><a href="/chart">图表分析</a></li>
+        <li role="presentation"><a href="/map">地图分析</a></li>
+        <li role="presentation"><a href="/analysis">同步分析</a></li>
+        <li role="presentation" class="active"><a href="/analysis/trajectory_lenses">轨迹透镜</a></li>
+    </ul>
+</header>
+<content>
+    <div style="position: fixed; z-index: 50; top: 80px; left: 15px; width: 300px; height: 100px; background-color: #EEEEEE; border-radius: 10px;padding: 10px">
+        <h4 align="center">修改透镜半径</h4>
+        <div class="input-group">
+            <input id="radius" type="number" oninput="if(value<0)value=200" class="form-control" value="200"
+                   aria-describedby="basic-addon2">
+            <span class="input-group-addon" id="basic-addon2">m</span>
+        </div>
+    </div>
+    <div id="map"></div>
+</content>
+
+<script type="text/javascript">
+    let normalm = L.tileLayer.chinaProvider('GaoDe.Normal.Map', {
+        maxZoom: 18,
+        minZoom: 5
+    });
+    let imgm = L.tileLayer.chinaProvider('GaoDe.Satellite.Map', {
+        maxZoom: 18,
+        minZoom: 5
+    });
+    let imga = L.tileLayer.chinaProvider('GaoDe.Satellite.Annotion', {
+        maxZoom: 18,
+        minZoom: 5
+    });
+
+    let normal = L.layerGroup([normalm]),
+        image = L.layerGroup([imgm, imga]);
+
+    let baseLayers = {
+        "地图": normal,
+        "影像": image,
+    };
+
+    let map = L.map("map", {
+        center: [30.258134, 120.19382669582967],
+        zoom: 15,
+        layers: [normal],
+        zoomControl: true
+    });
+    L.control.layers(baseLayers, null).addTo(map);
+    let radius = 200;
+    let circle = L.circle([30.258134, 120.19382669582967], radius, {
+            color: "#000000"
+        }
+    ).addTo(map);
+    let d_lat = radius / 111000;
+    let min_lat = 29.9920;
+    let lat_foot = 0.0005;
+    let min_lng = 119.7542;
+    let lng_foot = 0.0008;
+
+
+    $.ajax({
+        type: "GET",
+        url: "http://localhost:8000/static/data/line_data/test.json",
+        dataType: "json",
+        success: function (data) {
+            min_lat = data['min_lat'];
+            lat_foot = data['lat_foot'];
+            min_lng = data['min_lng'];
+            lng_foot = data['lng_foot'];
+            let list_data = data['data'];
+            console.log(list_data)
+            draw_circle(list_data, 10);
+            map.on('mousemove', function (e) {
+                $("path").remove(".once");
+                circle.setLatLng(e.latlng);
+                circle.setRadius(radius);
+                if (e.latlng['lat'] < min_lat || e.latlng['lat'] > min_lat + 1000 * lat_foot) {
+                    return;
+                }
+                let list = getLatList(e.latlng['lat']);
+                let left = Math.max(parseInt((e.latlng['lng'] - d_lat - min_lng) / lng_foot), 0);
+                let right = Math.min(parseInt((e.latlng['lng'] + d_lat - min_lng) / lng_foot), 1000);
+                for (let i = 0; i < list.length; i += 1) {
+                    if (list_data[list[i]] !== undefined) {
+                        for (let j = left; j <= right; j += 1) {
+                            if (list_data[list[i]][j] !== 0) {
+                                for (let k = 0; k < list_data[list[i]][j].length; k += 1) {
+                                    let lat1 = list_data[list[i]][j][k][2];
+                                    let lng1 = list_data[list[i]][j][k][1];
+                                    if (e.latlng.distanceTo(L.latLng(lat1, lng1)) < radius) {
+                                        let lat2 = list_data[list[i]][j][k][4];
+                                        let lng2 = list_data[list[i]][j][k][3];
+                                        let lat3 = 0;
+                                        let lng3 = 0;
+                                        lat3 = 1.00002 * (lat2 + lat1) / 2;
+                                        lng3 = 1.00002 * (lng2 + lng1) / 2;
+                                        L.circle([lat1, lng1], 10, {
+                                            color: "#00FF99",
+                                            className: "once"
+                                        }).addTo(map);
+                                        L.circle([lat2, lng2], 10, {
+                                            color: "#FF3333",
+                                            className: "once"
+                                        }).addTo(map);
+                                        L.curve(['M', [lat1, lng1],
+                                                'Q', [lat3, lng3], [lat2, lng2]],
+                                            {
+                                                color: '#006699',
+                                                opacity: 0.8,
+                                                weight: 1,
+                                                clickable: false,
+                                                className: "once"
+                                            }).addTo(map);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        },
+        error: function (data) {
+            console.log(data)
+        }
+    });
+
+
+    function draw_circle(list_data, radius) {
+
+        for (let i = min_lat; i < min_lat+lat_foot*1000; i += lat_foot) {
+            if (list_data[i] !== undefined) {
+                for (let j = 0; j < 1000; j += 1) {
+                    if (list_data[i][j] !== 0) {
+                        for (let k = 0; k < list_data[i][j].length; k += 1) {
+                            let lat1 = list_data[i][j][k][2];
+                            let lng1 = list_data[i][j][k][1];
+                            let lat2 = list_data[i][j][k][4];
+                            let lng2 = list_data[i][j][k][3];
+                            let lat3 = 0;
+                            let lng3 = 0;
+                            lat3 = 1.00002 * (lat2 + lat1) / 2;
+                            lng3 = 1.00002 * (lng2 + lng1) / 2;
+                            L.circle([lat1, lng1], radius, {
+                                color: "#CCFFCC",
+                                clickable: true,
+                            }).addTo(map);
+                            L.circle([lat2, lng2], radius, {
+                                color: "#FFCCFF",
+                                clickable: true,
+                            }).addTo(map);
+                            L.curve(['M', [lat1, lng1],
+                                    'Q', [lat3, lng3], [lat2, lng2]],
+                                {
+                                    color: '#CCCCCC',
+                                    opacity: 0.8,
+                                    weight: 1,
+                                    clickable: false,
+                                }).addTo(map);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    function getLatList(lat) {
+        let list = [];
+        let index = Math.max(parseInt((lat - d_lat - min_lat) / lat_foot), 0);
+        while (min_lat + index * lat_foot <= lat + d_lat) {
+            list.push((min_lat + index * lat_foot).toFixed(4));
+            index += 1;
+        }
+        return list;
+    }
+
+    $('#radius').bind('input propertychange', function () {
+        radius = $(this).val();
+        d_lat = radius / 111000;
+    });
+</script>
+</body>
+</html>

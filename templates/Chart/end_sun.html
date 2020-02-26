@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>旭日图</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/index.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap-theme.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/metisMenu.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/mm-vertical.css' %}">
+    <script type="text/javascript" src="{% static 'js/jquery.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/bootstrap.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/d3.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/metisMenu.js' %}"></script>
+    <script src="https://code.highcharts.com.cn/highcharts/highcharts.js"></script>
+    <script src="https://code.highcharts.com.cn/highcharts/modules/sunburst.js"></script>
+</head>
+<body class="bg">
+<header>
+    <ul class="nav nav-tabs">
+        <li role="presentation"><a href="/">Home</a></li>
+        <li role="presentation" class="active"><a href="/chart">图表分析</a></li>
+        <li role="presentation"><a href="/map">地图分析</a></li>
+        <li role="presentation"><a href="/analysis">同步分析</a></li>
+        <li role="presentation"><a href="/analysis/trajectory_lenses">轨迹透镜</a></li>
+    </ul>
+</header>
+<content>
+    <div class="left">
+        <nav class="sidebar-nav">
+            <ul class="metismenu" id="menu1">
+                <li>
+                    <a href="/chart/bubble">气泡图</a>
+                </li>
+                <li>
+                    <a href="/chart/line">折线图</a>
+                </li>
+                <li>
+                    <a href="/chart/column">柱状图</a>
+                </li>
+                <li>
+                    <a href="/chart/chord">和弦图</a>
+                </li>
+                <li class="mm-active">
+                    <a class="has-arrow" href="#">
+                        <span class="fa fa-fw fa-github fa-lg"></span>
+                        旭日图
+                    </a>
+                    <ul>
+                        <li>
+                            <a href="/chart/sun/start_sun">
+                                <span class="fa fa-fw fa-code-fork"></span>起点旭日图
+                            </a>
+                        </li>
+                        <li class="mm-active">
+                            <a href="/chart/sun/end_sun">
+                                <span class="fa fa-fw fa-star"></span>终点旭日图
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    <div class="right">
+        <div id="container" style="margin-top: 80px; margin-left: 230px;max-width: 700px"></div>
+    </div>
+</content>
+<script>
+    $('#menu1').metisMenu();
+    $.ajax({
+        type: "GET",
+        url: "http://localhost:8000/static/data/chart_data/end_sun_data.json",
+        dataType: "json",
+        success: function (data) {
+            data = data['data'];
+            Highcharts.setOptions({
+                lang: {
+                    thousandsSep: ','
+                }
+            });
+            Highcharts.setOptions({
+                colors: ["#b3e2cd", "#fdcdac", "#cbd5e8", "#f4cae4", "#e6f5c9","#00FF99","#00FFFF", "#CC3366", "#CCCCFF"]
+            });
+            Highcharts.getOptions().colors.splice(0, 0, 'transparent');
+
+            Highcharts.chart('container', {
+
+                chart: {
+                    height: '100%'
+                },
+
+                title: {
+                    text: ''
+                },
+                series: [{
+                    type: "sunburst",
+                    data: data,
+                    allowDrillToNode: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+
+                        formatter: function () {
+                            var shape = this.point.node.shapeArgs;
+
+                            var innerArcFraction = (shape.end - shape.start) / (2 * Math.PI);
+                            var perimeter = 2 * Math.PI * shape.innerR;
+
+                            var innerArcPixels = innerArcFraction * perimeter;
+
+                            if (innerArcPixels > 16) {
+                                return this.point.name;
+                            }
+                        }
+                    },
+                    levels: [{
+                        level: 2,
+                        colorByPoint: true,
+                        dataLabels: {
+                            rotationMode: 'parallel'
+                        }
+                    },
+                        {
+                            level: 3,
+                            colorVariation: {
+                                key: 'brightness',
+                                to: -0.5
+                            }
+                        },
+                        {
+                            level: 4,
+                            colorVariation: {
+                                key: 'brightness',
+                                to: 0.5
+                            }
+                        }
+                    ]
+
+                }],
+                tooltip: {
+                    headerFormat: "",
+                    pointFormat: '<b>{point.name}</b>的单车数量是：<b>{point.value}</b>'
+                }
+            });
+        }
+    })
+</script>
+</body>
+</html>

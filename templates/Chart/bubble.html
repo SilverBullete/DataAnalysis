@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>图表分析</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/index.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap-theme.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/metisMenu.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/mm-vertical.css' %}">
+    <style>
+        .tick line, path {
+            stroke: white;
+        }
+
+        .tick text, .legend text {
+            fill: white;
+        }
+    </style>
+    <script type="text/javascript" src="{% static 'js/jquery.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/bootstrap.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/d3.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/metisMenu.js' %}"></script>
+</head>
+<body class="bg">
+<header>
+    <ul class="nav nav-tabs">
+        <li role="presentation"><a href="/">Home</a></li>
+        <li role="presentation" class="active"><a href="/chart">图表分析</a></li>
+        <li role="presentation"><a href="/map">地图分析</a></li>
+        <li role="presentation"><a href="/analysis">同步分析</a></li>
+        <li role="presentation"><a href="/analysis/trajectory_lenses">轨迹透镜</a></li>
+    </ul>
+</header>
+<content>
+    <div class="left">
+        <nav class="sidebar-nav">
+            <ul class="metismenu" id="menu1">
+                <li class="mm-active">
+                    <a href="/chart/bubble">气泡图</a>
+                </li>
+                <li>
+                    <a href="/chart/line">折线图</a>
+                </li>
+                <li>
+                    <a href="/chart/column">柱状图</a>
+                </li>
+                <li>
+                    <a href="/chart/chord">和弦图</a>
+                </li>
+                <li>
+                    <a class="has-arrow" href="#">
+                        <span class="fa fa-fw fa-github fa-lg"></span>
+                        旭日图
+                    </a>
+                    <ul>
+                        <li>
+                            <a href="/chart/sun/start_sun">
+                                <span class="fa fa-fw fa-code-fork"></span>起点旭日图
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/chart/sun/end_sun">
+                                <span class="fa fa-fw fa-star"></span>终点旭日图
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    <div class="right">
+        <svg class="chart" style="margin-top: 77px; margin-left: 230px"></svg>
+    </div>
+</content>
+<script>
+    $('#menu1').metisMenu();
+    const provinces = [
+        '上城区',
+        '下城区',
+        '江干区',
+        '拱墅区',
+        '西湖区',
+        '滨江区',
+        '萧山区',
+        '余杭区',
+        '富阳区',
+        '桐庐县',
+        '淳安县',
+        '建德市',
+        '临安区',
+    ];
+    var chartWidth = 800;
+    var chartHeight = 500;
+
+    $.ajax({
+        type: "GET",
+        url: "http://localhost:8000/static/data/chart_data/bike_type_list.json",
+        dataType: "json",
+        success: function (data) {
+            data = data['data'];
+            let sampleData = [];
+            for (let i = 0; i < data.length; i++) {
+                sampleData.push({
+                    "name": provinces[i],
+                    "ofo": data[i][0],
+                    "hellobike": data[i][1],
+                    "mb": data[i][2]
+                })
+            }
+            makeChart(sampleData);
+        }
+    });
+
+    function makeChart(data) {
+
+
+        y = d3.scaleLinear()
+            .domain([0, 60000])
+            .range([465, 10]);
+
+        x1 = d3.scaleBand()
+            .domain(provinces)
+            .range([50, 700])
+
+        s1 = d3.scaleOrdinal()
+            .domain(["ofo", "mb", "hellobike"])
+            .range(["#a6cee3", "#1f78b4", "#b2df8a"]);
+
+        r = d3.scaleLinear()
+            .domain([0, 60000])
+            .range([5, 10]);
+
+        var canvas = d3.select(".chart")
+            .style("width", chartWidth)
+            .style("height", chartHeight);
+
+        var scatter = d3.select(".chart").selectAll("circle")
+            .data(data);
+
+        var enter = scatter.enter().append("circle")
+            .attr("fill-opacity", 0.85)
+            .attr("r", function (d) {
+                return r(d.ofo);
+            })
+            .attr("stroke-width", "0px")
+        var enter1 = scatter.enter().append("circle")
+            .attr("fill-opacity", 0.85)
+            .attr("r", function (d) {
+                return r(d.mb);
+            })
+            .attr("stroke-width", "0px")
+        var enter2 = scatter.enter().append("circle")
+            .attr("fill-opacity", 0.85)
+            .attr("r", function (d) {
+                return r(d.hellobike);
+            })
+            .attr("stroke-width", "0px")
+
+
+        enter.append("svg:title")
+            .text(function (d) {
+                return "ofo";
+            });
+        enter1.append("svg:title")
+            .text(function (d) {
+                return "mb";
+            });
+        enter2.append("svg:title")
+            .text(function (d) {
+                return "hellobike";
+            });
+
+        enter.merge(scatter).transition().duration(1000)
+            .attr("cx", function (d, i) {
+                return x1(d.name) + 32;
+            })
+            .attr("cy", function (d) {
+                return y(d.ofo);
+            })
+            .attr("fill", function (d) {
+                return "#a6cee3";
+            })
+
+        enter1.merge(scatter).transition().duration(500)
+            .attr("cx", function (d, i) {
+                return x1(d.name) + 32;
+            })
+            .attr("cy", function (d) {
+                return y(d.mb);
+            })
+            .attr("fill", function (d) {
+                return "#1f78b4";
+            })
+
+        enter2.merge(scatter).transition().duration(500)
+            .attr("cx", function (d, i) {
+                return x1(d.name) + 32;
+            })
+            .attr("cy", function (d) {
+                return y(d.hellobike);
+            })
+            .attr("fill", function (d) {
+                return "#b2df8a";
+            })
+
+        xAxis = d3.axisBottom()
+            .scale(x1)
+
+
+        yAxis = d3.axisLeft()
+            .scale(y);
+
+        var yAxisGroup = canvas.append("g")
+            .attr("class", "axis")
+            .attr("transform", "translate(45,0)")
+            .call(yAxis);
+
+        yAxisGroup.selectAll("text")
+            .attr("transform", "translate(-5,0)");
+
+        yAxisGroup.append("text")
+            .text("Passenger Age")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 15)
+            .attr("dx", -10)
+            .style("text-anchor", "end");
+
+        canvas.append("g")
+            .attr("class", "axis")
+            .attr("transform", "translate(0," + (chartHeight - 25) + ")")
+            .call(xAxis)
+            .append("text")
+            .text("Passengers")
+            .attr("x", chartWidth - 65)
+            .attr("dy", 12)
+            .style("text-anchor", "middle");
+
+        genderLegend();
+    }
+
+
+    function genderLegend() {
+        // Draw the gender legend
+        var legend = d3.select(".chart").selectAll(".legend")
+            .data(s1.domain().slice().reverse())
+            .enter().append("g")
+            .attr("class", "legend")
+            .attr("transform", function (d, i) {
+                return "translate(0," + i * 20 + ")";
+            });
+
+        legend.append("rect")
+            .attr("x", 670)
+            .attr("y", 9)
+            .attr("width", 18)
+            .attr("height", 18)
+            .style("fill", s1);
+
+        legend.append("text")
+            .attr("x", 655)
+            .attr("y", 18)
+            .attr("dy", ".35em")
+            .style("text-anchor", "end")
+            .text(function (d) {
+                return d.charAt(0).toUpperCase() + d.slice(1);
+            });
+    }
+</script>
+</body>
+</html>

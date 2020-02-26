@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>首页</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/index.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap-theme.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/metisMenu.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/mm-vertical.css' %}">
+    <script type="text/javascript" src="{% static 'js/jquery.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/bootstrap.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/metisMenu.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/l7.js' %}"></script>
+</head>
+<body class="bg">
+<header>
+    <ul class="nav nav-tabs">
+        <li role="presentation" class="active"><a href="#">Home</a></li>
+        <li role="presentation"><a href="/chart">图表分析</a></li>
+        <li role="presentation"><a href="/map">地图分析</a></li>
+        <li role="presentation"><a href="/analysis">同步分析</a></li>
+        <li role="presentation"><a href="/analysis/trajectory_lenses">轨迹透镜</a></li>
+    </ul>
+</header>
+<content>
+    <div class="left">
+        <div class="content"></div>
+    </div>
+    <div id="map"></div>
+</content>
+<script>
+    $('#menu1').metisMenu();
+    const scene = new L7.Scene({
+        id: 'map',
+        map: new L7.GaodeMap({
+            style: 'dark', // 样式URL
+            center: [120.19382669582967, 30.258134],
+            pitch: 0,
+            zoom: 11,
+            token: 'a00fbb87bafe615bc28bdf0885fb4d46'
+        })
+    });
+    $.ajax({
+        type: "GET",
+        url: "http://localhost:8000/static/data/line_data/data4.json",
+{#                url: "http://localhost:8000/api/home_data",#}
+        dataType: "json",
+        success: function (data) {
+            console.log(data);
+            const linelayer = new L7.LineLayer({})
+                .source(data)
+                .size(1)
+                .shape('arc')
+                .color('rgb(13,64,140)')
+                .style({
+                    opacity: 0.8,
+                    blur: 0.99
+                });
+            scene.addLayer(linelayer);
+        }
+    });
+</script>
+</body>
+</html>
